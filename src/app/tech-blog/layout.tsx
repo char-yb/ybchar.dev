@@ -6,16 +6,20 @@ import { source } from '@/lib/source';
 export default function Layout({ children }: { children: ReactNode }) {
   // source.pageTree가 올바른 구조를 가지도록 기본값을 설정
   const pageTree = source.pageTree || { name: 'root', children: [] };
-  const filteredPageNode = pageTree.children.filter(
-    (child) => {
+  const filteredPageNode = pageTree.children
+    .filter((child) => {
       return child.$id !== 'char-yb-introduce.mdx' && child.$id !== 'index.mdx';
-    }
-  )
+    })
+    .sort((a, b) => {
+      const dateA = a.$id?.match(/^(\d{8})/)?.[1] || '';
+      const dateB = b.$id?.match(/^(\d{8})/)?.[1] || '';
+      return dateB.localeCompare(dateA);
+    });
 
   const filteredPageTree = {
-    ...pageTree, 
-    children: filteredPageNode
-  }
+    ...pageTree,
+    children: filteredPageNode,
+  };
 
   return (
     <DocsLayout tree={filteredPageTree} {...baseOptions}>
