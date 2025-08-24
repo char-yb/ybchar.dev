@@ -1,5 +1,5 @@
-import React from "react";
-import certificatesData from "../content/certificatesData";
+import React from 'react';
+import certificatesData from '../content/certificatesData';
 
 const Certificates: React.FC = () => {
   return (

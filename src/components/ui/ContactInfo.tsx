@@ -1,11 +1,12 @@
-import React from "react";
+import React from 'react';
+import Image from 'next/image';
 
 const ContactInfo: React.FC = () => {
   return (
     <div className="w-full md:w-1/2">
       <h1 className="text-xl font-bold mb-2">Introduction</h1>
       <div className="max-w-[300px] mx-auto mb-4 text-center">
-        <img src="/images/git_profile.png" alt="Profile" className="w-full rounded-md" />
+        <Image src="/images/git_profile.png" alt="Profile" width={300} height={300} className="w-full rounded-md" />
       </div>
       <p>
         <strong>Email</strong>: uiurihappy@naver.com <br />
