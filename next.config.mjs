@@ -11,6 +11,10 @@ const config = {
         protocol: 'https',
         hostname: 'img.shields.io',
       },
+      {
+        protocol: 'https',
+        hostname: 'velog.velcdn.com',
+      },
     ],
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
