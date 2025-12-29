@@ -16,7 +16,7 @@
     "fumadocs-mdx": "11.5.8",
     "fumadocs-ui": "15.2.6",
     "lucide-react": "^0.503.0",
-    "next": "15.2.4",
+    "next": "15.2.8",
     "next-mdx-remote": "^4.4.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
