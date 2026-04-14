@@ -1,0 +1,4 @@
+interface:
+  display_name: "ybchar Tech Writing"
+  short_description: "ybchar.dev 톤으로 기술 글을 기획·초안·리뷰"
+  default_prompt: "Use $ybchar-tech-writing to plan, draft, or refine a ybchar.dev tech-blog article in polished Korean with strong evidence, practical tradeoff analysis, and the author's own tone."
