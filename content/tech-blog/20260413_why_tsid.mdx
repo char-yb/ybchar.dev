@@ -1,0 +1,247 @@
+---
+title: "TSID는 왜 사용하는가"
+description: "coupon-system에서 TSID를 내부 PK로 선택한 이유와 AUTO_INCREMENT/sequence, UUIDv4, UUIDv7에서의 실무 관점 트레이드오프를 정리해보았습니다."
+date: "2026-04-13"
+tags:
+  - kotlin
+  - spring
+  - jpa
+  - mysql
+  - tsid
+  - uuid
+  - architecture
+---
+<img src="https://velog.velcdn.com/images/uiurihappy/post/4104d6c8-8bd4-4daf-8757-a13c0a457017/image.png" width="100%" />
+
+# 서론
+
+식별자 전략은 초반 소규모 프로젝트에서 AUTO_INCREMENT/sequence를 사용해도 큰 문제가 없지만, 트래픽이 올라가면 운영 비용으로 바로 돌아옵니다. AUTO_INCREMENT로 전략을 가져갔을경우, 정말로 21억 이상의 데이터가 쌓이면 이후 식별자 전략을 바꿔야 하는 상황이 올 수 있습니다.
+또한 AUTO_INCREMENT/sequence는 단일 DB에 의존하기 때문에, 확장 시나리오에서 ID 생성이 병목이 되거나 장애 지점이 될 수 있습니다.
+특히 쿠폰처럼 발급 이벤트가 계속 쌓이고 비동기 경계가 많은 시스템에서는 PK 선택이 인덱스, 정렬, 장애 대응 방식까지 바꿉니다.
+
+이번 `coupon-system`에서 제가 잡은 원칙은 명확했습니다.
+내부 PK는 TSID(`Long`)로 두고, 요청 상관관계 키와 사용자 노출 코드는 역할을 분리하는 것이었습니다.
+
+## 왜 이 주제를 다시 정리했는가
+
+처음에는 `AUTO_INCREMENT/sequence`와 UUID 사이에서 흔히 하던 고민을 그대로 했습니다.
+
+- DB가 발급하는 숫자 PK는 단순하고 빠릅니다. (저희가 아는 AUTO_INCREMENT입니다.) <a href="#ref-e3">[E3]</a> <a href="#ref-e4">[E4]</a>
+- UUID는 중앙 시퀀서 없이 분산 생성이 쉽습니다. <a href="#ref-e2">[E2]</a>
+
+하지만 이번 프로젝트는 단순 CRUD보다 발급·소진·취소 이벤트와 outbox 흐름이 중심이었습니다.
+그래서 "숫자 PK의 인덱스 감각"과 "분산 생성 편의"를 동시에 가져갈 수 있는 선택지가 필요했습니다.
+
+## TSID는 무엇인가
+
+이제는 TSID가 꽤 알려졌을 수도 있지만, 간단히 설명하자면
+TSID(Time-Sorted Unique Identifier)는 시간 정렬 성질을 갖는 64비트 ID입니다.
+실무에서는 `Long/BIGINT`로 다루기 쉬우면서, 애플리케이션에서 직접 생성할 수 있다는 점이 핵심 장점입니다. <a href="#ref-e1">[E1]</a> JPA에서는 널리 사용되는 Generator 전략과는 달리, 애플리케이션 레벨에서 ID를 생성하는 방식입니다.
+
+JPA에서는 엔티티 기본키를 자동으로 생성하는 표준 방식, Hibernate에서는 `@GeneratedValue`와 `GenerationType` 전략이 있습니다. 이와 달리 TSID는 애플리케이션에서 직접 생성하는 방식으로, `@PrePersist` 같은 JPA 콜백에서 TSID 생성기를 호출해 ID를 채우는 형태로 사용됩니다.
+
+`tsid-creator`는 시간 컴포넌트와 랜덤 컴포넌트를 조합해 정렬 가능성과 충돌 회피를 함께 가져갑니다. <a href="#ref-e1">[E1]</a>
+
+그래서 UUID처럼 완전 랜덤한 문자열보다는 내부 숫자 PK에 훨씬 더 자연스럽게 들어갑니다.
+
+코드 컨텍스트: TSID 생성기
+```kotlin
+object TsidGenerator {
+    fun generate(): Long = TsidCreator.getTsid().toLong()
+}
+```
+
+코드 컨텍스트: 엔티티 저장 직전에 PK를 채움
+```kotlin
+@PrePersist
+fun generateId() {
+    if (id == null) id = TsidGenerator.generate()
+}
+```
+
+## AUTO_INCREMENT/sequence vs UUIDv4 vs UUIDv7 vs TSID
+
+| 항목 | AUTO_INCREMENT/sequence | UUIDv4 | UUIDv7 | TSID |
+| --- | --- | --- | --- | --- |
+| 생성 주체 | DB | 애플리케이션 | 애플리케이션 | 애플리케이션 |
+| 비트 크기 | 보통 64비트 | 128비트 | 128비트 | 64비트 |
+| 시간 정렬성 | 높음 | 낮음 | 높음 | 높음 |
+| 분산 생성 편의 | 낮음~중간 | 높음 | 높음 | 높음 |
+| 인덱스 지역성 | 좋음 | 불리 | 유리 | 유리 |
+| 외부 표준성 | DB/엔진 의존 | 높음 | 높음 | 상대적으로 낮음 |
+| 내부 PK 적합성 | 매우 높음 | 중간 | 중간~높음 | 매우 높음 |
+
+> 단일 RDB/B-tree PK 기준의 실무적 경향치입니다.
+
+UUIDv7은 RFC 9562에서 시간 기반 정렬을 고려한 UUID로 정의되어, UUID 호환성을 유지하면서 정렬 특성을 확보하려는 팀에 맞습니다. <a href="#ref-e2">[E2]</a>
+
+반면 TSID는 내부 PK를 `BIGINT`로 유지하고 싶은 팀에게 더 직접적인 선택지입니다.
+
+## 제가 TSID를 택한 순간
+
+중반 설계에서 가장 크게 부딪힌 지점은 `coupon_issue`와 `outbox_event`의 동시 성장 패턴이었습니다.
+UUIDv4로 가면 생성은 쉽지만, PK 인덱스와 정렬 특성이 너무 랜덤해져 읽기와 운영 관점에서 일관성이 떨어질 가능성이 컸습니다. 또한 128비트 UUID는 `BIGINT`로 표현할 수 없어서, JPA 엔티티에서 `String`으로 다루며 성능 문제가 생길 수 있었습니다.
+
+반대로 `AUTO_INCREMENT`는 단순했지만, ID 생성의 중심이 DB에 고정되는 점이 확장 시나리오에서 계속 걸렸습니다.
+그때 "내부 PK는 숫자로 유지하고, 생성은 앱에서 하자"라는 기준으로 좁히면서 TSID가 자연스럽게 남았습니다.
+결정 이후에는 `id`, `requestId`, `couponCode`를 각각 다른 문제로 분리하면서 설계가 오히려 더 단순해졌습니다.
+
+## 사용 사례
+
+TSID라는 이름을 그대로 쓰지 않더라도, "시간 정렬이 가능한 분산 ID" 계열은 이미 여러 대형 서비스에서 검증된 패턴입니다.
+제가 TSID를 설명할 때 자주 언급하는 사례들을 간단히 이야기한다면,
+
+### Discord: Snowflake를 API 규약으로 끌고 간 사례
+
+Discord는 공식 API 문서에서 Twitter의 snowflake format을 사용한다고 명시합니다.
+그리고 64비트 크기 때문에 HTTP API에서는 오버플로를 피하려고 항상 문자열로 반환한다고 설명합니다. <a href="#ref-e10">[E10]</a>
+
+제가 이 사례를 좋아하는 이유는 "ID 전략이 API 설계까지 바꾼다"는 점이 잘 드러나기 때문입니다.
+Discord에서 snowflake는 단순한 내부 PK가 아니라, pagination과 클라이언트 직렬화 방식까지 결정하는 규약입니다.
+이건 TSID를 도입할 때도 그대로 생각해볼 포인트입니다.
+
+### LY Corporation: 주문 DB 이관에서 Snowflake 채택
+
+LY Corporation 한국어 기술 블로그에는 MySQL 이관 과정에서 `Auto Increment`가 JPA batch insert와 잘 맞지 않아, 채번 테이블 대신 `Snowflake 방식`을 채택한 사례가 나옵니다. <a href="#ref-e13">[E13]</a>
+
+이 글이 특히 좋은 이유는 "왜 굳이 분산 ID가 필요했는가"가 꽤 실무적으로 드러나기 때문입니다.
+단순히 유행하는 채번 방식을 쓴 것이 아니라, JPA batch insert, 성능, 하위 호환성, 인스턴스 번호 선점 같은 운영 이슈까지 함께 설명합니다.
+즉, 국내 사례 중에서는 TSID와 가장 가까운 문제 정의를 보여주는 자료라고 봐도 좋습니다.
+
+### 우아한형제들: 자동 증가 PK가 항상 답이 아닌 상황
+
+우아한형제들 기술 블로그에는 `IDENTITY` 기반 자동 증가 PK를 계속 써오다가, 기존 시스템과의 호환성 때문에 더 이상 그대로 갈 수 없어서 프로시저 기반 키 생성으로 전환한 사례가 소개됩니다. <a href="#ref-e14">[E14]</a>
+
+이 글은 Snowflake나 TSID를 직접 다루지는 않지만, 중요한 메시지는 분명합니다.
+DB가 기본키를 알아서 만들어주는 방식이 가장 단순해 보여도, 시스템 경계가 넓어지거나 기존 자산과 맞물리면 결국 애플리케이션 쪽에서 식별자 전략을 다시 설계해야 할 때가 온다는 점입니다.
+저는 이 사례를 TSID 글에서 "왜 auto increment만으로는 항상 충분하지 않은가"를 설명하는 보조 근거로 읽었습니다.
+
+## coupon-system에서는 TSID를 어떻게 적용했는가
+
+코드 컨텍스트: 스키마는 숫자 PK를 사용하고 `AUTO_INCREMENT`를 쓰지 않습니다.
+```sql
+-- V1 축약 발췌
+CREATE TABLE t_coupon (
+    id BIGINT NOT NULL,
+    coupon_code VARCHAR(50) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    coupon_type VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    discount_amount BIGINT NOT NULL,
+    max_discount_amount BIGINT NULL,
+    min_order_amount BIGINT NULL,
+    total_quantity BIGINT NOT NULL,
+    remaining_quantity BIGINT NOT NULL,
+    available_at DATETIME(6) NOT NULL,
+    end_at DATETIME(6) NOT NULL,
+    created_at DATETIME(6) NOT NULL,
+    updated_at DATETIME(6) NULL,
+    deleted_at DATETIME(6) NULL,
+    CONSTRAINT pk_coupon PRIMARY KEY (id),
+    CONSTRAINT uk_coupon_coupon_code UNIQUE (coupon_code)
+);
+```
+
+코드 컨텍스트: outbox 조회는 시간 + ID 정렬 기준을 함께 사용합니다.
+```kotlin
+.orderBy(
+    path(OutboxEventEntity::availableAt).asc(),
+    path(OutboxEventEntity::id).asc(),
+)
+```
+
+이 조합의 의도는 명확합니다.
+내부 PK는 숫자형으로 유지해 조인과 정렬 비용을 예측 가능하게 가져가고, 생성 타이밍은 DB 자동 증가에 묶지 않는 것입니다.
+
+## `id` / `requestId` / `couponCode` 역할 분리
+
+이번 설계에서 중요한 포인트는 "식별자 하나로 모든 요구사항을 해결하지 않는다"였습니다.
+
+코드 컨텍스트: 비동기 상관관계는 UUID 문자열
+```kotlin
+val requestId = UUID.randomUUID().toString()
+```
+
+코드 컨텍스트: 사용자 노출 코드는 별도 비즈니스 포맷
+```kotlin
+fun generate(): String = "${generateDate()}_${prefix}_${generateUUID()}"
+```
+
+코드 컨텍스트: API DTO는 내부 PK를 `Long`으로 들고 있음
+```kotlin
+data class Detail(
+    val id: Long,
+    ...
+)
+```
+
+역할 분리는 이렇게 가져갔습니다.
+
+- `id`: 내부 PK/조인 키 (TSID, `Long`)
+- `requestId`: 비동기 요청 추적 (UUID 문자열)
+- `couponCode`: 사용자 노출 식별자 (읽기 가능한 문자열 규칙)
+
+이렇게 나누면, 내부 저장 효율과 외부 인터페이스 요구사항을 서로 독립적으로 최적화할 수 있습니다.
+
+## 분산환경 확장 가이드
+
+### 1) node 관리: 명시적으로 운영합니다
+
+인스턴스 수가 늘어나면 node 할당 정책을 배포 구성에 포함해 충돌 가능성을 줄여야 합니다.
+핵심은 각 생성 주체가 서로 다른 공간을 쓰게 만드는 것입니다. <a href="#ref-e1">[E1]</a>
+
+### 2) 전역 순서 오해 방지
+
+TSID는 time-sorted 성질이 있지만, 분산 시스템의 절대 순서를 보장하는 도구는 아닙니다.
+노드 시계 차이와 처리 지연이 있으면 실제 비즈니스 순서와 어긋날 수 있습니다.
+정답 순서는 Kafka offset, DB commit timestamp, 도메인 version 같은 별도 기준으로 관리해야 합니다.
+
+### 3) JS 직렬화 이슈는 "주의"가 아니라 "기본 위험"입니다
+
+현재 시점의 TSID(`Long`) 값은 JavaScript `Number.MAX_SAFE_INTEGER`를 대체로 초과하므로, 숫자(`Number`)로 그대로 노출하면 대부분 위험합니다. <a href="#ref-e7">[E7]</a>
+즉, JS 클라이언트가 있는 API에서 TSID를 숫자로 보내는 설계는 예외가 아니라 기본적으로 피해야 합니다.
+실무 기본값은 `문자열 직렬화` 또는 `BigInt` 전제 계약입니다.
+
+## 헷갈리기 쉬운 지점
+
+- TSID는 숫자처럼 보여도 `AUTO_INCREMENT`가 아닙니다.
+- TSID는 내부 PK에 강하지만, 외부 공개 식별자 용도로는 별도 설계가 더 안전할 때가 많습니다.
+- UUIDv7과 TSID는 **대체재라기보다 우선순위가 다른 선택지입니다.**
+- "정렬되는 ID"와 "전역 순서 보장"은 같은 말이 아닙니다.
+
+## 최종 결정
+
+이번 프로젝트의 결론은 한 줄로 정리됩니다.
+
+내부 PK는 TSID(`Long`)로, 상관관계 추적은 UUID로, 사용자 노출 식별자는 별도 문자열로 분리한다.
+
+이 기준이 조인, 인덱스, 정렬의 운영 감각과 분산환경 확장성을 동시에 맞추는 데 가장 실용적이었습니다.
+
+## 결론
+
+식별자 전략은 나중에 바꾸기 가장 어려운 축 중 하나입니다.
+그래서 초반에 목적을 분리해 두는 것이 결국 운영을 단순하게 만듭니다.
+
+이번 선택에서 제가 얻은 경험도 같습니다.
+
+- 단일 DB 단순성이 최우선이면 `AUTO_INCREMENT/sequence`
+- UUID 표준 호환성이 최우선이면 `UUIDv7`
+- 내부 숫자 PK와 분산 생성 균형이 필요하면 `TSID`
+
+그리고 무엇보다, `id`, `requestId`, `couponCode`는 같은 문제가 아니라는 점을 끝까지 지키는 것이 중요했습니다.
+저는 분산환경과 MSA 관점에서 쿠폰 시스템을 설계하였고, AUTO_INCREMENT보다는 TSID가 더 적합하다고 판단했습니다.
+
+## References
+
+- <span id="ref-e1">[E1]</span> TSID Creator, https://github.com/f4b6a3/tsid-creator
+- <span id="ref-e2">[E2]</span> RFC 9562: UUIDs, https://www.rfc-editor.org/rfc/rfc9562.html
+- <span id="ref-e3">[E3]</span> MySQL 8.4: Using AUTO_INCREMENT, https://dev.mysql.com/doc/refman/8.4/en/example-auto-increment.html
+- <span id="ref-e4">[E4]</span> MySQL 8.4: InnoDB AUTO_INCREMENT Handling, https://dev.mysql.com/doc/refman/8.4/en/innodb-auto-increment-handling.html
+- <span id="ref-e7">[E7]</span> MDN: Number.MAX_SAFE_INTEGER, https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
+- <span id="ref-e8">[E8]</span> X Engineering: Announcing Snowflake, https://blog.x.com/engineering/en_us/a/2010/announcing-snowflake.html
+- <span id="ref-e9">[E9]</span> X Engineering: Direct Message IDs will become 64-bit Snowflake IDs, https://blog.x.com/2011/important-direct-message-ids-will-become-64-bit-snowflake-ids-on-sep-30
+- <span id="ref-e10">[E10]</span> Discord API Reference: Snowflakes, https://docs.discord.com/developers/reference
+- <span id="ref-e11">[E11]</span> Segment KSUID, https://github.com/segmentio/ksuid
+- <span id="ref-e12">[E12]</span> Sonyflake, https://github.com/sony/sonyflake
+- <span id="ref-e13">[E13]</span> LY Corporation Tech Blog: 이커머스 플랫폼의 주문 DB 마이그레이션 경험기, https://techblog.lycorp.co.jp/ko/experience-in-migrating-order-db-on-ecommerce-platform
+- <span id="ref-e14">[E14]</span> 우아한형제들 기술블로그: 데이터 베이스의 자동증가 값을 기본키로 사용할 수 없을 때는?, https://techblog.woowahan.com/2607/
