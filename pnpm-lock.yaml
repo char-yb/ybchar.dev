@@ -84,6 +84,9 @@ importers:
       unist-util-visit:
         specifier: ^5.1.0
         version: 5.1.0
+      zod:
+        specifier: ^3.24.2
+        version: 3.24.2
 
 packages:
 

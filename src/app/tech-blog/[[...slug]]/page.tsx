@@ -8,6 +8,8 @@ import {
 import { notFound } from 'next/navigation';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { getMDXComponents } from '@/mdx-components';
+import { BlogPostMeta } from '@/components/ui/BlogPostMeta';
+import { normalizeDate, normalizeTags } from '@/lib/blog';
 
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
@@ -17,11 +19,15 @@ export default async function Page(props: {
   if (!page) notFound();
 
   const MDXContent = page.data.body;
+  const primarySlug = params.slug?.at(-1);
+  const date = normalizeDate((page.data as { date?: unknown }).date, primarySlug);
+  const tags = normalizeTags((page.data as { tags?: unknown }).tags);
 
   return (
     <DocsPage toc={page.data.toc} full={page.data.full}>
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
+      <BlogPostMeta date={date} tags={tags} />
       <DocsBody>
         <MDXContent
           components={getMDXComponents({

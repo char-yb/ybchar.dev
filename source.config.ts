@@ -1,6 +1,7 @@
-import { defineDocs, defineConfig } from 'fumadocs-mdx/config';
+import { defineDocs, defineConfig, frontmatterSchema } from 'fumadocs-mdx/config';
 import { visit } from 'unist-util-visit';
 import type { Root } from 'mdast';
+import { z } from 'zod';
 
 function remarkMermaid() {
   return (tree: Root) => {
@@ -16,6 +17,11 @@ function remarkMermaid() {
             name: 'chart',
             value: node.value,
           },
+          {
+            type: 'mdxJsxAttribute',
+            name: 'width',
+            value: '100%',
+          },
         ],
         children: [],
       } as any);
@@ -23,9 +29,18 @@ function remarkMermaid() {
   };
 }
 
+const blogFrontmatterSchema = frontmatterSchema.extend({
+  date: z.union([z.string(), z.date()]).optional(),
+  tags: z.array(z.string()).nullish(),
+  cover: z.string().optional(),
+});
+
 // Options: https://fumadocs.vercel.app/docs/mdx/collections#define-docs
 export const docs = defineDocs({
   dir: 'content/tech-blog',
+  docs: {
+    schema: blogFrontmatterSchema,
+  },
 });
 
 export default defineConfig({

@@ -6,13 +6,17 @@ const ZOOM_STEP = 0.2;
 const ZOOM_MIN = 0.3;
 const ZOOM_MAX = 4;
 
-export function Mermaid({ chart }: { chart: string }) {
+type MermaidProps = {
+  chart: string;
+  width?: string;
+};
+
+export function Mermaid({ chart, width = '100%' }: MermaidProps) {
   const id = useId().replace(/:/g, '');
   const ref = useRef<HTMLDivElement>(null);
   const panAreaRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>('');
   const [open, setOpen] = useState(false);
-  const isFlowchart = /^\s*flowchart/i.test(chart);
 
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -45,10 +49,13 @@ export function Mermaid({ chart }: { chart: string }) {
     ref.current.innerHTML = svg;
     const svgEl = ref.current.querySelector('svg');
     if (svgEl) {
+      svgEl.setAttribute('width', width);
+      svgEl.style.width = width;
       svgEl.style.maxWidth = '100%';
       svgEl.style.height = 'auto';
+      svgEl.style.display = 'block';
     }
-  }, [svg]);
+  }, [svg, width]);
 
   useEffect(() => {
     if (open) {
@@ -116,8 +123,8 @@ export function Mermaid({ chart }: { chart: string }) {
       <div
         className="my-4 cursor-zoom-in rounded-xl overflow-x-auto"
         style={{
+          width,
           fontSize: '0.82em',
-          maxWidth: isFlowchart ? '420px' : undefined,
           backgroundColor: isDark ? '#1e1e2e' : 'white',
           padding: '20px',
           boxShadow: isDark
@@ -127,7 +134,7 @@ export function Mermaid({ chart }: { chart: string }) {
         onClick={() => setOpen(true)}
         title="클릭하면 크게 볼 수 있습니다"
       >
-        <div ref={ref} />
+        <div ref={ref} style={{ width }} />
       </div>
 
       {open && (
