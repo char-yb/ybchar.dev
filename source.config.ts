@@ -1,33 +1,6 @@
 import { defineDocs, defineConfig, frontmatterSchema } from 'fumadocs-mdx/config';
-import { visit } from 'unist-util-visit';
-import type { Root } from 'mdast';
+import { remarkMdxMermaid } from 'fumadocs-core/mdx-plugins';
 import { z } from 'zod';
-
-function remarkMermaid() {
-  return (tree: Root) => {
-    visit(tree, 'code', (node, index, parent) => {
-      if (node.lang !== 'mermaid' || index === undefined || !parent) return;
-
-      parent.children.splice(index, 1, {
-        type: 'mdxJsxFlowElement',
-        name: 'Mermaid',
-        attributes: [
-          {
-            type: 'mdxJsxAttribute',
-            name: 'chart',
-            value: node.value,
-          },
-          {
-            type: 'mdxJsxAttribute',
-            name: 'width',
-            value: '100%',
-          },
-        ],
-        children: [],
-      } as any);
-    });
-  };
-}
 
 const blogFrontmatterSchema = frontmatterSchema.extend({
   date: z.union([z.string(), z.date()]).optional(),
@@ -45,6 +18,6 @@ export const docs = defineDocs({
 
 export default defineConfig({
   mdxOptions: {
-    remarkPlugins: [remarkMermaid],
+    remarkPlugins: [remarkMdxMermaid],
   },
 });
