@@ -20,6 +20,11 @@ export type BlogPostSummary = {
 
 const HIDDEN_PAGE_NAMES = new Set(['index', 'char-yb-introduce']);
 
+function getPageName(page: SourcePage) {
+  const fileName = page.path.split('/').at(-1) ?? page.path;
+  return fileName.replace(/\.[^/.]+$/, '');
+}
+
 export function normalizeDate(value: unknown, slug?: string) {
   if (typeof value === 'string' && value.trim().length > 0) {
     return value;
@@ -44,7 +49,7 @@ export function normalizeTags(value: unknown) {
 }
 
 function isVisibleBlogPage(page: SourcePage) {
-  return !HIDDEN_PAGE_NAMES.has(page.file.name);
+  return !HIDDEN_PAGE_NAMES.has(getPageName(page));
 }
 
 function toSortKey(post: Pick<BlogPostSummary, 'date' | 'slug'>) {
@@ -69,10 +74,11 @@ export function getBlogPosts(): BlogPostSummary[] {
     .filter(isVisibleBlogPage)
     .map((page) => {
       const data = page.data as FrontmatterLike;
-      const slug = page.slugs.at(-1) ?? page.file.name;
+      const pageName = getPageName(page);
+      const slug = page.slugs.at(-1) ?? pageName;
 
       return {
-        title: data.title ?? page.file.name,
+        title: data.title ?? pageName,
         description: data.description,
         url: page.url,
         slug,
