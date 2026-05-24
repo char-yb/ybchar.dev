@@ -31,6 +31,8 @@ tags:
 
 이 글은 FairLock 자체를 소개하기 위한 글이라기보다, 제가 선착순 예약 시스템을 구현하면서 **정합성과 공정성을 분리해서 생각하게 된 과정**을 정리한 글입니다.
 
+글에서 이야기하는 과제 코드는 [fcfs-reservation-system](https://github.com/char-yb/fcfs-reservation-system)에 정리해두었습니다. 한정 수량 숙소 상품을 대상으로 00시 오픈 직후의 예약과 결제를 처리하는 Kotlin/Spring Boot 기반 시스템이고, Redis counter, Redisson FairLock, MySQL 조건부 차감, 결제 실패 보상 흐름을 함께 다뤘습니다.
+
 ## 처음에 흔히들 아는 분산락이면 충분하다고 생각했습니다
 
 일반적인 Redis 기반 분산락의 목적은 명확합니다. 여러 서버 인스턴스가 같은 자원에 동시에 접근하지 못하게 막는 것입니다.
@@ -152,6 +154,10 @@ flowchart LR
     G --> H["성공 확정 또는 보상 처리"]
 ```
 
+실제 과제 repo에서는 이 구조를 README와 설계 문서로 나눠 정리했습니다. 전체 시스템 맥락은 [README](https://github.com/char-yb/fcfs-reservation-system/blob/main/README.md)에, Redis counter와 FairLock 경계는 [동시성/락 전략 문서](https://github.com/char-yb/fcfs-reservation-system/blob/main/docs/02-concurrency-and-locking.md)에, 왜 다층 방어를 선택했는지는 [주요 의사결정 문서](https://github.com/char-yb/fcfs-reservation-system/blob/main/DECISIONS.md)에 남겨두었습니다.
+
+코드 기준으로 따라가면 흐름이 더 분명합니다. 예약 요청의 전체 흐름은 [BookingFacade](https://github.com/char-yb/fcfs-reservation-system/blob/main/apps/application/src/main/kotlin/com/reservation/application/booking/BookingFacade.kt)가 조율하고, Redis counter와 FairLock을 묶은 재고 예약 경계는 [StockService](https://github.com/char-yb/fcfs-reservation-system/blob/main/apps/application/src/main/kotlin/com/reservation/application/product/StockService.kt)에 있습니다. Redis Lua 조건부 차감은 [StockRedisCounterRepository](https://github.com/char-yb/fcfs-reservation-system/blob/main/storage/redis/src/main/kotlin/com/reservation/storage/redis/product/StockRedisCounterRepository.kt)에, Redisson FairLock 획득은 [RedisLockClient](https://github.com/char-yb/fcfs-reservation-system/blob/main/storage/redis/src/main/kotlin/com/reservation/storage/redis/lock/RedisLockClient.kt)와 [DistributedLockProcessor](https://github.com/char-yb/fcfs-reservation-system/blob/main/storage/redis/src/main/kotlin/com/reservation/storage/redis/lock/DistributedLockProcessor.kt)에 있습니다. 마지막 방어선인 DB 조건부 차감은 [ProductStockJpaRepository](https://github.com/char-yb/fcfs-reservation-system/blob/main/storage/rdb/src/main/kotlin/com/reservation/storage/rdb/product/stock/ProductStockJpaRepository.kt), 락 안에서 PENDING 주문을 만드는 구간은 [BookingReservationProcessor](https://github.com/char-yb/fcfs-reservation-system/blob/main/apps/application/src/main/kotlin/com/reservation/application/booking/BookingReservationProcessor.kt)를 보면 됩니다.
+
 ## 왜 결제는 lock 밖으로 뺐을까
 
 선착순 시스템에서 lock 안에 들어가는 코드는 짧아야 합니다.
@@ -219,6 +225,13 @@ FairLock은 멋져 보여서 넣는 기술이 아닙니다. 그리고 FairLock�
 이번 과제에서 FairLock은 최종 정답이라기보다, 제가 정합성과 공정성을 분리해서 보기 시작한 계기였습니다.
 
 ## References
+
+### Project References
+
+- <span id="ref-p1">[P1]</span> [fcfs-reservation-system GitHub Repository](https://github.com/char-yb/fcfs-reservation-system)
+- <span id="ref-p2">[P2]</span> [fcfs-reservation-system README](https://github.com/char-yb/fcfs-reservation-system/blob/main/README.md)
+- <span id="ref-p3">[P3]</span> [Concurrency Control & Locking Strategy](https://github.com/char-yb/fcfs-reservation-system/blob/main/docs/02-concurrency-and-locking.md)
+- <span id="ref-p4">[P4]</span> [DECISIONS](https://github.com/char-yb/fcfs-reservation-system/blob/main/DECISIONS.md)
 
 ### External References
 
