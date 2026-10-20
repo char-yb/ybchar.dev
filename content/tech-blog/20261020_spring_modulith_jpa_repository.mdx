@@ -171,10 +171,10 @@ flowchart TD
 
 ```text
 new DefaultJpaEventPublication(...)
-  1. 필드는 기본값으로 시작합니다           completionDate = null
-  2. 생성자 본문이 위에서부터 실행됩니다    this.id = id, this.listenerId = listenerId, ...
-  3. 상태 기본값을 고릅니다                 completionDate != null ?  → 항상 false
-  4. 완료 시각은 생성자가 끝난 뒤에야 들어옵니다
+  1. completionDate = null                            ← 필드는 기본값으로 시작합니다
+  2. this.id = id; this.listenerId = listenerId; ...  ← 생성자 본문이 위에서부터 실행됩니다
+  3. completionDate != null  -> false                 ← 상태 기본값을 고를 때 이 조건은 항상 false입니다
+  4. result.completionDate = instant;                 ← 완료 시각은 생성자가 끝난 뒤에야 들어옵니다 (archive() 기준)
 ```
 
 *그림 5. 생성자가 도는 동안 `completionDate`를 채우는 코드는 없습니다*
