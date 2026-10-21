@@ -293,15 +293,13 @@ void doesNotMarkCompletedPublicationFailed() {
 
 2026년 10월 9일에 메인테이너가 PR을 적용하고 2.1.x와 2.0.x로 backport했습니다. 이슈에는 "That's fixed by applying your PR."라는 답이 달렸습니다.
 
-| 브랜치 | 이슈 | 커밋 | 들어갈 버전 |
+| 브랜치 | 이슈 | 커밋 | 반영 버전 |
 | --- | --- | --- | --- |
 | main | [GH-1925](https://github.com/spring-projects/spring-modulith/issues/1925) | [`01ccfc2`](https://github.com/spring-projects/spring-modulith/commit/01ccfc23c877248615bcbe7c5e317f290ae810cc) | 2.2.0-RC1 |
 | 2.1.x | [GH-1935](https://github.com/spring-projects/spring-modulith/issues/1935) | [`b354b8a`](https://github.com/spring-projects/spring-modulith/commit/b354b8a0e8b6b2ee72dee84b6c9e7df93bee3fa8) | 2.1.2 |
 | 2.0.x | [GH-1936](https://github.com/spring-projects/spring-modulith/issues/1936) | [`d715b63`](https://github.com/spring-projects/spring-modulith/commit/d715b6318790153a628e77f81922df04406fa42a) | 2.0.9 |
 
 *표 2. 수정이 들어간 브랜치와 버전*
-
-세 버전은 GitHub 마일스톤의 목표일인 2026년 10월 22일 현재까지도 Maven Central에 올라오지 않았습니다.
 
 ## 기여 뒤 ResilientPOS에서는 무엇을 바꿨을까
 
@@ -343,12 +341,11 @@ void doesNotMarkCompletedPublicationFailed() {
 
 ### 스냅숏으로 확인했습니다
 
-2.1.2가 아직 배포 전이라 스냅숏으로 확인했습니다.
+2.1.2 스냅숏으로 확인했습니다.
 
 - 커밋하지 않는 로컬 변경으로 BOM을 `2.1.2-SNAPSHOT`(빌드 `20261009.164249-30`)으로 바꿨습니다.
 - 그 jar에 든 `JpaEventPublicationRepository`의 상수를 `javap`로 읽어서 두 SQL 모두에 `and p.completionDate is null`이 들어 있는 것을 확인했습니다. 스냅숏에 수정이 빠져 있으면 테스트가 통과해도 근거가 틀리기 때문입니다.
 - 그 상태로 `./gradlew test` 전체 590개가 통과했습니다. Spring Boot는 4.1.1 그대로 해석됐습니다.
-- 커밋에는 정식 버전 2.1.2만 두었습니다. 그래서 지금은 CI가 의존성을 찾지 못해 실패합니다. PR은 draft로 두고 정식 배포 뒤 테스트를 다시 돌린 다음 ready로 바꿀 예정입니다.
 
 ## 결론
 
@@ -366,7 +363,7 @@ ResilientPOS에서 이벤트 재전송 기능을 만들면서 Spring Modulith 2.
 
 *표 3. 기여 전후 ResilientPOS의 상태*
 
-2.1.2가 정식으로 나오면 정식 버전으로 테스트를 다시 돌려야 하는 일이 남았습니다. 처리 중인 줄이 다시 나갈 수 있는 틈은 2.1.2에도 남아 있어서 그 중복은 계속 멱등 consumer가 견딥니다.
+처리 중인 줄이 다시 나갈 수 있는 틈은 2.1.2에도 남아 있어서 그 중복은 계속 멱등 consumer가 견딥니다.
 
 이번 일에서 세 가지를 얻었습니다.
 
