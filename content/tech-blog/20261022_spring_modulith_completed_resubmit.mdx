@@ -1,7 +1,7 @@
 ---
 title: "끝난 이벤트가 다시 나가던 버그를 Spring Modulith에 고쳐 넣기까지"
 description: "이벤트 재전송 기능을 만들며 넣은 우회 코드의 이유를 다시 확인하다가, UPDATE 완료 모드에서 이미 끝난 이벤트가 다시 재전송되거나 FAILED로 돌아가는 Spring Modulith 버그를 찾아 조건 한 줄로 고쳐 넣은 과정을 정리했습니다."
-date: "2026-10-20"
+date: "2026-10-22"
 tags:
   - Spring Modulith
   - Event Publication Registry
@@ -15,7 +15,7 @@ tags:
 
 개인 프로젝트 ResilientPOS에서 이벤트 재전송 기능을 만들다가 Spring Modulith의 버그를 찾았습니다. 이미 처리를 마친 이벤트가 한 번 더 나가거나 실패한 것으로 되돌아가는 버그였습니다.
 
-<img src="/images/20261020/hero-resend-stamp.jpg" alt="이미 완료 표시가 된 장부 줄에 재발송 도장을 찍으려는 우체국 직원" style={{ width: '100%', maxWidth: '560px', height: 'auto', display: 'block', margin: '0 auto' }} />
+<img src="/images/20261022/hero-resend-stamp.jpg" alt="이미 완료 표시가 된 장부 줄에 재발송 도장을 찍으려는 우체국 직원" style={{ width: '100%', maxWidth: '560px', height: 'auto', display: 'block', margin: '0 auto' }} />
 
 *그림 1. 택배는 이미 문 앞에 도착했는데 장부의 그 줄에 재발송 도장을 또 찍는 상황입니다*
 
@@ -50,7 +50,7 @@ flowchart LR
 
 이 글에서 중요한 칸은 상태(`status`)와 완료 시각(`completion_date`) 두 개뿐입니다.
 
-<img src="/images/20261020/ledger-row.png" alt="event_publication 한 줄. 상태 칸에는 PUBLISHED, PROCESSING, COMPLETED, FAILED, RESUBMITTED 중 하나가 찍히고 완료 시각 칸에 시각이 있으면 끝난 줄입니다" style={{ width: '100%', height: 'auto', display: 'block', margin: '0 auto' }} />
+<img src="/images/20261022/ledger-row.png" alt="event_publication 한 줄. 상태 칸에는 PUBLISHED, PROCESSING, COMPLETED, FAILED, RESUBMITTED 중 하나가 찍히고 완료 시각 칸에 시각이 있으면 끝난 줄입니다" style={{ width: '100%', height: 'auto', display: 'block', margin: '0 auto' }} />
 
 *그림 3. 장부 한 줄에서 이 글이 다루는 두 칸*
 
@@ -152,13 +152,13 @@ update DefaultJpaEventPublication p
 
 재전송은 `FAILED` 줄을 먼저 읽고 한 줄씩 재전송 도장을 찍은 뒤 보냅니다. 읽은 뒤 도장을 찍기 전에 그 줄이 끝나도 도장은 찍힙니다.
 
-<img src="/images/20261020/two-clerks-duplicate.jpg" alt="오른쪽 직원은 7번 봉투를 이미 보냈는데 왼쪽 직원이 예전에 읽은 목록대로 같은 줄에 재발송 도장을 찍어 우체통에 7번 봉투가 두 통 들어간 모습" style={{ width: '100%', maxWidth: '560px', height: 'auto', display: 'block', margin: '0 auto' }} />
+<img src="/images/20261022/two-clerks-duplicate.jpg" alt="오른쪽 직원은 7번 봉투를 이미 보냈는데 왼쪽 직원이 예전에 읽은 목록대로 같은 줄에 재발송 도장을 찍어 우체통에 7번 봉투가 두 통 들어간 모습" style={{ width: '100%', maxWidth: '560px', height: 'auto', display: 'block', margin: '0 auto' }} />
 
 *그림 5. 직원 둘이 장부 하나를 같이 쓰면 생기는 일. 왼쪽 직원은 아까 읽은 목록만 보고 도장을 찍습니다*
 
 장부로 옮기면 7번 줄은 이렇게 바뀝니다.
 
-<img src="/images/20261020/incident-1.png" alt="서버 A가 실패 목록을 읽은 뒤 서버 B가 7번을 완료하고, 서버 A가 그 줄에 재발송 도장을 찍어 한 번 더 보내는 과정" style={{ width: '100%', height: 'auto', display: 'block', margin: '0 auto' }} />
+<img src="/images/20261022/incident-1.png" alt="서버 A가 실패 목록을 읽은 뒤 서버 B가 7번을 완료하고, 서버 A가 그 줄에 재발송 도장을 찍어 한 번 더 보내는 과정" style={{ width: '100%', height: 'auto', display: 'block', margin: '0 auto' }} />
 
 *그림 6. 두 서버가 거의 동시에 재전송을 돌릴 때 7번 줄에 일어나는 일*
 
@@ -171,7 +171,7 @@ update DefaultJpaEventPublication p
 
 재전송 작업을 만들 때 monitor에서 이미 본 문제입니다. 그때는 monitor를 꺼서 피했는데 원인은 monitor가 아니라 위의 첫 번째 SQL에 있었습니다. monitor를 꺼도 다시 보낸 전송이 실패하는 경로(`markFailed`)에서는 똑같이 생깁니다.
 
-<img src="/images/20261020/incident-2.png" alt="monitor가 처리 중인 9번을 고른 뒤 리스너가 9번을 완료하고, monitor가 그 줄에 실패 도장을 찍는 과정" style={{ width: '100%', height: 'auto', display: 'block', margin: '0 auto' }} />
+<img src="/images/20261022/incident-2.png" alt="monitor가 처리 중인 9번을 고른 뒤 리스너가 9번을 완료하고, monitor가 그 줄에 실패 도장을 찍는 과정" style={{ width: '100%', height: 'auto', display: 'block', margin: '0 auto' }} />
 
 *그림 7. monitor가 고른 줄이 그 사이에 끝났을 때 9번 줄에 일어나는 일*
 
@@ -181,7 +181,7 @@ update DefaultJpaEventPublication p
 
 두 사고를 모아 보면 끝난 줄에 도장이 다시 찍혔을 때 세 가지 일이 생깁니다.
 
-<img src="/images/20261020/why.png" alt="두 번 처리됨, 장부 앞뒤가 맞지 않음, 완료 시각이 바뀜이라는 세 가지 결과" style={{ width: '100%', height: 'auto', display: 'block', margin: '0 auto' }} />
+<img src="/images/20261022/why.png" alt="두 번 처리됨, 장부 앞뒤가 맞지 않음, 완료 시각이 바뀜이라는 세 가지 결과" style={{ width: '100%', height: 'auto', display: 'block', margin: '0 auto' }} />
 
 *그림 8. 끝난 줄에 도장이 다시 찍히면 생기는 일*
 
@@ -232,13 +232,13 @@ void doesNotMarkCompletedPublicationFailed() {
 
 고친 방법은 단순합니다. 도장을 찍기 전에 완료 시각 칸부터 봅니다.
 
-<img src="/images/20261020/check-before-stamp.jpg" alt="돋보기로 장부 줄의 완료 시각과 완료 표시를 확인하고 재발송 도장을 거두는 직원" style={{ width: '100%', maxWidth: '560px', height: 'auto', display: 'block', margin: '0 auto' }} />
+<img src="/images/20261022/check-before-stamp.jpg" alt="돋보기로 장부 줄의 완료 시각과 완료 표시를 확인하고 재발송 도장을 거두는 직원" style={{ width: '100%', maxWidth: '560px', height: 'auto', display: 'block', margin: '0 auto' }} />
 
 *그림 9. 완료 시각이 적혀 있으면 재발송 도장을 찍지 않습니다*
 
 규칙으로 옮기면 조건 하나가 더해집니다.
 
-<img src="/images/20261020/rule.png" alt="고치기 전 규칙은 이 도장이 없으면 찍는다, 고친 뒤 규칙은 완료 시각이 비어 있고 이 도장이 없으면 찍는다" style={{ width: '100%', height: 'auto', display: 'block', margin: '0 auto' }} />
+<img src="/images/20261022/rule.png" alt="고치기 전 규칙은 이 도장이 없으면 찍는다, 고친 뒤 규칙은 완료 시각이 비어 있고 이 도장이 없으면 찍는다" style={{ width: '100%', height: 'auto', display: 'block', margin: '0 auto' }} />
 
 *그림 10. 상태를 바꾸는 규칙의 전후*
 
@@ -272,7 +272,7 @@ void doesNotMarkCompletedPublicationFailed() {
 
 `UPDATE` 모드에서 이미 완료된 7번 줄에 재전송 도장을 찍어 보면 장부가 이렇게 달라집니다.
 
-<img src="/images/20261020/before-after.png" alt="고치기 전에는 완료된 7번 줄이 재발송 중으로 바뀌고, 고친 뒤에는 완료와 처음 완료 시각이 그대로 남습니다" style={{ width: '100%', height: 'auto', display: 'block', margin: '0 auto' }} />
+<img src="/images/20261022/before-after.png" alt="고치기 전에는 완료된 7번 줄이 재발송 중으로 바뀌고, 고친 뒤에는 완료와 처음 완료 시각이 그대로 남습니다" style={{ width: '100%', height: 'auto', display: 'block', margin: '0 auto' }} />
 
 *그림 11. 완료된 줄에 재발송 도장을 찍어 본 결과*
 
