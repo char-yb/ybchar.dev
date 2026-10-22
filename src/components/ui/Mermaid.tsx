@@ -2,6 +2,7 @@
 
 import { use, useEffect, useId, useState } from 'react';
 import { useTheme } from 'next-themes';
+import { DiagramViewer } from '@/components/ui/DiagramViewer';
 
 type MermaidProps = {
   chart: string;
@@ -48,12 +49,5 @@ function MermaidContent({ chart }: MermaidProps) {
     }),
   );
 
-  return (
-    <div
-      ref={(container) => {
-        if (container) bindFunctions?.(container);
-      }}
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
-  );
+  return <DiagramViewer svg={svg} bindFunctions={bindFunctions} />;
 }
