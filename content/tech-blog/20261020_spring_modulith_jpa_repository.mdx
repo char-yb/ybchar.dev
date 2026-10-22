@@ -286,7 +286,9 @@ void deletesPublicationsByIdentifierInBatches() {
 +protected @Nullable @Enumerated(EnumType.STRING) Status status;
 ```
 
-상태 칸이 비어 있는 줄이 있을 수 있다는 점까지 코드에 드러낸 것입니다. 제가 고친 범위보다 한 걸음 더 나간 정리였습니다.
+`status` 칸이 없던 이전 스키마에서 넘어온 줄은 이 칸이 비어 있고, DB에서 읽어 오면 필드도 `null`이 됩니다. <a href="#ref-p5">[P5]</a> 커밋 제목의 legacy schema가 이런 줄을 가리킵니다.
+
+그런 줄이 있을 수 있다는 점까지 코드에 드러낸 것입니다. 제가 고친 범위보다 한 걸음 더 나간 정리였습니다.
 
 ## 결론
 
@@ -312,6 +314,7 @@ Spring Modulith의 Event Publication Registry를 이해하려고 JPA 저장소 �
 - <span id="ref-p2">[P2]</span> [Commit f9d5be6: GH-1701 - Fix JPA event publication delete batching](https://github.com/spring-projects/spring-modulith/commit/f9d5be69cb64187da1fdf7ce9af4a985cd56f3d1), [Commit e85e606: GH-1701 - Polishing](https://github.com/spring-projects/spring-modulith/commit/e85e6063d48e4e645d7fc38ca515488cf05c3da2)
 - <span id="ref-p3">[P3]</span> [Issue #1703: Simplify default status assignment in JpaEventPublication](https://github.com/spring-projects/spring-modulith/issues/1703), [PR #1704: GH-1703 - Simplify JPA publication status defaulting](https://github.com/spring-projects/spring-modulith/pull/1704)
 - <span id="ref-p4">[P4]</span> [Commit 5c52df4: GH-1703 - Simplify legacy schema status defaulting for JPA event publications](https://github.com/spring-projects/spring-modulith/commit/5c52df49057a20dcc62d2e1ddfb954308e45aa07)
+- <span id="ref-p5">[P5]</span> [Commit 21e9c05: GH-1893 - Allow resubmission of publications with a null status](https://github.com/spring-projects/spring-modulith/commit/21e9c05c5b5357c8ebe7f00befb6db6b46f8481b)
 
 ### External References
 
