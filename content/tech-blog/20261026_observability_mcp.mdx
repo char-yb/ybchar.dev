@@ -16,7 +16,7 @@ tags:
 
 그런데 그 조회가 너무 비쌌습니다. 로그 5행을 가져왔는데 응답이 30만 자가 넘었고, 트레이스 하나를 펼치면 26만 자가 나왔습니다. 원인을 좁히기도 전에 컨텍스트가 조회 결과로 가득 찼습니다.
 
-<img src="/images/20261026/hero-context-flood.jpg" alt="모니터에서 쏟아져 나온 JSON 출력 종이에 책상과 개발자, 어시스턴트 로봇이 파묻힌 모습" style={{ width: '100%', maxWidth: '640px', height: 'auto', display: 'block', margin: '0 auto' }} />
+<img src="/images/20261026/hero-context-flood.jpg" srcSet="/images/20261026/hero-context-flood-640.jpg 640w, /images/20261026/hero-context-flood.jpg 1200w" sizes="(max-width: 672px) 100vw, 640px" width={1200} height={675} alt="모니터에서 쏟아져 나온 JSON 출력 종이에 책상과 개발자, 어시스턴트 로봇이 파묻힌 모습" style={{ width: '100%', maxWidth: '640px', height: 'auto', display: 'block', margin: '0 auto' }} />
 
 *그림 1. 조회 한 번의 결과가 책상을 다 덮어 버리는 상황입니다*
 
@@ -147,7 +147,7 @@ flowchart TB
 
 *그림 3. 같은 API를 부르지만 요청 조립, 응답 압축, 키 보관의 위치가 다릅니다*
 
-<img src="/images/20261026/curl-vs-mcp.jpg" alt="왼쪽은 로봇이 열쇠를 손에 든 채 긴 주문서를 쓰고 종이 더미를 돌려받는 장면, 오른쪽은 열쇠가 창구 안 보관함에 잠겨 있고 로봇은 짧은 메모만 넣고 카드 한 장을 돌려받는 장면" style={{ width: '100%', maxWidth: '640px', height: 'auto', display: 'block', margin: '0 auto' }} />
+<img src="/images/20261026/curl-vs-mcp.jpg" srcSet="/images/20261026/curl-vs-mcp-640.jpg 640w, /images/20261026/curl-vs-mcp.jpg 1200w" sizes="(max-width: 672px) 100vw, 640px" width={1200} height={675} alt="왼쪽은 로봇이 열쇠를 손에 든 채 긴 주문서를 쓰고 종이 더미를 돌려받는 장면, 오른쪽은 열쇠가 창구 안 보관함에 잠겨 있고 로봇은 짧은 메모만 넣고 카드 한 장을 돌려받는 장면" style={{ width: '100%', maxWidth: '640px', height: 'auto', display: 'block', margin: '0 auto' }} />
 
 *그림 4. curl 방식은 키를 들고 긴 요청을 직접 쓰고 원본을 그대로 받습니다. MCP는 키를 서버 안에 두고 짧은 요청만 넣어 한 장으로 받습니다*
 
@@ -253,7 +253,7 @@ flowchart LR
 
 기준은 하나였습니다. **이 값이 다음 조사 단계의 필터나 조인 키로 쓰이는가.** 쓰이면 남기고 아니면 버렸습니다. 대신 무엇이든 잘랐다면 잘랐다는 사실은 반드시 남기기로 했습니다.
 
-<img src="/images/20261026/log-compress.jpg" alt="반복되는 꼬리표가 잔뜩 붙은 두꺼운 서류 뭉치가 MCP라고 적힌 기계를 지나 카드 한 장으로 나오는 장면" style={{ width: '100%', maxWidth: '640px', height: 'auto', display: 'block', margin: '0 auto' }} />
+<img src="/images/20261026/log-compress.jpg" srcSet="/images/20261026/log-compress-640.jpg 640w, /images/20261026/log-compress.jpg 1200w" sizes="(max-width: 672px) 100vw, 640px" width={1200} height={675} alt="반복되는 꼬리표가 잔뜩 붙은 두꺼운 서류 뭉치가 MCP라고 적힌 기계를 지나 카드 한 장으로 나오는 장면" style={{ width: '100%', maxWidth: '640px', height: 'auto', display: 'block', margin: '0 auto' }} />
 
 *그림 6. 행마다 반복되던 꼬리표를 떼고, 다음 조사에 쓸 값만 한 줄로 남깁니다*
 
